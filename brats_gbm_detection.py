@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 # === Paths ===
 root_dir = r"D:\GBM_code\archive\Training"  # Kaggle dataset path
-brats_dir = r"D:\GBM_code\GBM datasets\ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData\ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData"       # BRATS dataset path
+brats_dir = r"D:\GBM_code\GBM datasets\ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData\ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData"        # BRATS dataset path
 
 IMG_SIZE = 128
 MAX_SAMPLES = 100  # Limit samples for test speed
@@ -44,7 +44,7 @@ def process_kaggle_image(args):
     if mask is None:
         return None
     feats = extract_morph_features(mask) if label_val == 1 else [0, 0, 0]
-    return (feats, label_val, tumor_type)
+    return (feats, label_val, tumor_type, "kaggle")
 
 def process_brats_folder(subj_path):
     print(f"Processing BRATS subject folder: {subj_path}")
@@ -56,7 +56,7 @@ def process_brats_folder(subj_path):
             mask = nib.load(mask_path).get_fdata()
             binary = (mask > 0).astype(np.uint8)
             feats = extract_morph_features(binary)
-            results.append((feats, 1, "gbm"))
+            results.append((feats, 1, "gbm", "brats"))
             print(f"  Processed {mask_path}")
         except Exception as e:
             print(f"  Failed to load/process {mask_path}: {e}")
@@ -112,6 +112,7 @@ if __name__ == "__main__":
     features = [r[0] for r in all_results]
     labels = [r[1] for r in all_results]
     tumor_types = [r[2] for r in all_results]
+    sources = [r[3] for r in all_results]
 
     X = np.array(features)
     y = np.array(labels)
@@ -119,8 +120,8 @@ if __name__ == "__main__":
     print(f"Total samples for classification: {len(X)}")
 
     # Train/test split and classification
-    X_train, X_test, y_train, y_test, tt_train, tt_test = train_test_split(
-        X, y, tumor_types, test_size=0.2, random_state=42
+    X_train, X_test, y_train, y_test, tt_train, tt_test, src_train, src_test = train_test_split(
+        X, y, tumor_types, sources, test_size=0.2, random_state=42
     )
 
     clf = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -128,14 +129,15 @@ if __name__ == "__main__":
     pred = clf.predict(X_test)
 
     for i, p in enumerate(pred):
+        src = src_test[i]
         if p == 1:
-            print(f"Sample {i}: yes (GBM/glioma detected)")
+            print(f"Sample {i} ({src}): yes (GBM/glioma detected)")
         else:
             ttype = tt_test[i]
             if ttype == 'none':
-                print(f"Sample {i}: no (no tumor)")
+                print(f"Sample {i} ({src}): no (no tumor)")
             else:
-                print(f"Sample {i}: no ({ttype} tumor)")
+                print(f"Sample {i} ({src}): no ({ttype} tumor)")
 
     print("\nClassification Report:\n", classification_report(y_test, pred))
     print("Confusion Matrix:\n", confusion_matrix(y_test, pred))
