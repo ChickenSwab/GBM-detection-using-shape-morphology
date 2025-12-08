@@ -14,30 +14,54 @@ root_dir = r"D:\GBM_code\archive\Training"
 brats_dir = r"D:\GBM_code\GBM datasets\ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData\ASNR-MICCAI-BraTS2023-GLI-Challenge-TrainingData"        # BRATS dataset path
 
 IMG_SIZE = 128
-MAX_SAMPLES = 100  
+MAX_SAMPLES = 1000 
 
 def extract_morph_features(mask):
     lbl = label(mask)
     props = regionprops(lbl)
-    if props:
-        r = props[0]
-        area = r.area
-        border = binary_dilation(mask) ^ mask
-        perimeter_approx = np.count_nonzero(border)
-        bbox = r.bbox
-        bbox_volume = np.prod([bbox[i + 1] - bbox[i] for i in range(0, len(bbox), 2)])
-        return [area, perimeter_approx, bbox_volume]
+    if not props:
+        return [0.0, 0.0, 0.0]
+
+    r = props[0]
+    area = float(r.area)
+    
+    # Safe perimeter (works 2D/3D)
+    border = binary_dilation(mask) ^ mask
+    perimeter_approx = float(np.count_nonzero(border))
+    
+    # FIXED bbox volume calculation
+    bbox = r.bbox
+    if len(bbox) < 4 or len(bbox) % 2 != 0:
+        bbox_volume = float(area * 4)  # Fallback
     else:
-        return [0, 0, 0]
+        bbox_sizes = []
+        for i in range(0, len(bbox), 2):
+            size = max(1, bbox[i + 1] - bbox[i])  # Ensure positive, min 1
+            bbox_sizes.append(size)
+        bbox_volume = float(np.prod(bbox_sizes))
+    
+    return [area, perimeter_approx, bbox_volume]
+
+
 
 def preprocess_img(path):
     img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise FileNotFoundError(f"Cannot read image: {path}")
+
     img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-    # Otsu's automatic thresholding
+
+    # Light denoising
+    img = cv2.medianBlur(img, 3)
+
+    # Contrast normalization (CLAHE)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    img = clahe.apply(img)
+
+    # Otsu binary mask (0/1)
     _, binary = cv2.threshold(img, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return binary
+
 
 def process_kaggle_image(args):
     img_path, label_val, tumor_type = args
@@ -125,7 +149,15 @@ if __name__ == "__main__":
 
     import joblib
 
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf = RandomForestClassifier(
+    n_estimators=300,
+    max_depth=None,
+    min_samples_split=4,
+    class_weight="balanced",
+    random_state=42,
+    n_jobs=-1,
+)
+
     clf.fit(X_train, y_train)
 
     # Save the trained model here
