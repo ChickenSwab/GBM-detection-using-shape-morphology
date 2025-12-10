@@ -1,5 +1,3 @@
-# GBM HYBRID DETECTION — SHORT README
-
 ## HOW IT WORKS
 This project detects tumor vs non-tumor MRI slices using a hybrid model:
 1. A CNN is trained on MRI images to learn deep features.
