@@ -1,20 +1,21 @@
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers, models
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # --------- Config ----------
 IMG_SIZE = 128
 BATCH_SIZE = 16
 EPOCHS = 15
 
-# Your Kaggle root
-root_dir = r"D:\GBM_code\archive\Training"
+root_dir = r"D:\GBM_code_new\archive\Training"
 # ---------------------------
 
-# Data generators: 80% train / 20% val split from same root
+# Data generators
 datagen = ImageDataGenerator(
-    rescale=1.0 / 255.0,
-    validation_split=0.2,      # split inside this directory
+    rescale=1.0/255.0,
+    validation_split=0.2,
     rotation_range=10,
     width_shift_range=0.05,
     height_shift_range=0.05,
@@ -46,25 +47,23 @@ val_gen = datagen.flow_from_directory(
 print("Class indices:", train_gen.class_indices)
 
 # --------- CNN model ----------
-model = models.Sequential(
-    [
-        layers.Input(shape=(IMG_SIZE, IMG_SIZE, 1)),
+model = models.Sequential([
+    layers.Input(shape=(IMG_SIZE, IMG_SIZE, 1)),
 
-        layers.Conv2D(32, (3, 3), activation="relu", padding="same"),
-        layers.MaxPooling2D(2, 2),
+    layers.Conv2D(32, (3, 3), activation="relu", padding="same"),
+    layers.MaxPooling2D(2, 2),
 
-        layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
-        layers.MaxPooling2D(2, 2),
+    layers.Conv2D(64, (3, 3), activation="relu", padding="same"),
+    layers.MaxPooling2D(2, 2),
 
-        layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
-        layers.MaxPooling2D(2, 2),
+    layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
+    layers.MaxPooling2D(2, 2),
 
-        layers.Flatten(),
-        layers.Dense(128, activation="relu"),
-        layers.Dropout(0.5),
-        layers.Dense(1, activation="sigmoid"),  # binary: tumor vs notumor
-    ]
-)
+    layers.Flatten(),
+    layers.Dense(128, activation="relu"),
+    layers.Dropout(0.5),
+    layers.Dense(1, activation="sigmoid"),   # binary output
+])
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(1e-4),
@@ -82,6 +81,7 @@ history = model.fit(
 )
 
 # --------- Save model ----------
-model.save(r"D:\GBM_code\cnn_brain_tumor.keras")
+model.save(r"D:\GBM_code_new\cnn_brain_tumor.keras")
+model.save(r"D:\GBM_code_new\cnn_brain_tumor.h5")
 
-print("Model saved to D:\\GBM_code\\cnn_brain_tumor.h5")
+print("Model saved successfully.")
